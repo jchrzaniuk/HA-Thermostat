@@ -1,0 +1,39 @@
+<!doctype html><html lang="pl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Konfiguracja termostatu</title><style>
+body{font:16px system-ui;background:#11151b;color:#f5f5f5;max-width:540px;margin:40px auto;padding:20px}input,select,button{box-sizing:border-box;width:100%;padding:13px;margin:8px 0 18px;border:1px solid #46505e;border-radius:9px;background:#202630;color:white}button{background:#b95519;cursor:pointer}button:disabled{opacity:.5;cursor:wait}small{color:#b9c2cc}#status{white-space:pre-wrap}a{color:#ffc38d}[hidden]{display:none!important}</style>
+<h1>Twój termostat</h1><p id="intro">Ładowanie ustawień…</p>
+<section id="wifi-section" hidden><h2>1. Połącz z Wi-Fi</h2>
+<p>Na tym etapie potrzebujesz tylko danych domowej sieci 2,4 GHz. Home Assistant skonfigurujesz później, z komputera.</p>
+<form id="wifi"><label>Nazwa sieci Wi-Fi<input name="ssid" required maxlength="32" autocomplete="off"></label>
+<label>Hasło Wi-Fi<input name="password" type="password" maxlength="63" autocomplete="new-password"></label>
+<button>Połącz z siecią domową</button></form></section>
+<section id="ha-section" hidden><h2>2. Połącz z Home Assistant</h2>
+<p>Panel jest już w Twojej sieci. Możesz otworzyć tę stronę na komputerze i wkleić token z profilu użytkownika HA.</p>
+<form id="connection"><label>Adres Home Assistant<input name="uri" required placeholder="http://homeassistant.local:8123" autocomplete="url"></label>
+<label>Token długoterminowy HA<input name="token" type="password" autocomplete="new-password"></label>
+<small>Puste pole zachowuje wcześniej zapisany token.</small>
+<button>Zapisz połączenie z HA</button></form>
+<section id="entity-section" hidden><h2>3. Wybierz termostat</h2>
+<p>Wybierz encję Better Thermostat, Versatile Thermostat lub inny termostat zarządzający pokojem.</p>
+<button id="refresh">Pobierz termostaty z HA</button><select id="entities" aria-label="Termostat"></select><button id="choose">Zakończ konfigurację</button></section>
+<button id="change-wifi">Zmień sieć Wi-Fi</button></section>
+<section><h2>Aktualizacja firmware</h2><p>Wersja panelu: <span id="version">—</span></p>
+<form id="ota"><label>Plik firmware (.bin z <code>build/</code>)<input name="firmware" type="file" accept=".bin" required></label>
+<small>Nie wyłączaj zasilania podczas aktualizacji. Jeśli nowa wersja nie uruchomi się poprawnie, panel wróci do poprzedniej.</small>
+<button>Wgraj firmware</button></form></section>
+<p id="status" role="status" aria-live="polite"></p><button id="reload" hidden>Odśwież po restarcie panelu</button>
+<script>
+const el=id=>document.getElementById(id);
+const status=el('status'),wifi=el('wifi'),connection=el('connection'),entities=el('entities');
+async function request(path,data){const r=await fetch(path,{method:data?'POST':'GET',cache:'no-store',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const text=await r.text();if(!r.ok)throw Error(text);return text;}
+async function load(){try{const s=JSON.parse(await request('/state'));el('wifi-section').hidden=s.wifi_ready;el('ha-section').hidden=!s.wifi_ready;el('entity-section').hidden=!s.ha_configured;el('intro').textContent=s.wifi_ready?'Połączono z siecią '+s.ssid+'.':'Zacznij od połączenia panelu z Wi-Fi.';wifi.elements.ssid.value=s.ssid;el('version').textContent=s.version;connection.elements.uri.value=s.ha_url;if(s.ha_configured&&s.wifi_ready)await refresh();}catch(e){status.textContent=e.message;el('reload').hidden=false}}
+async function refresh(){try{const data=JSON.parse(await request('/entities'));entities.replaceChildren();for(const item of data.entities){const option=document.createElement('option');option.value=item.id;option.textContent=item.name+' — '+item.id;entities.append(option)}status.textContent=data.status}catch(e){status.textContent=e.message}}
+async function save(form,path,message){const button=form.querySelector('button');button.disabled=true;try{await request(path,Object.fromEntries(new FormData(form)));status.textContent=message;el('reload').hidden=path==='/wifi';}catch(e){status.textContent=e.message;button.disabled=false}}
+wifi.onsubmit=e=>{e.preventDefault();save(wifi,'/wifi','Zapisano Wi-Fi. Panel uruchomi się ponownie. Wróć do domowej sieci, a następnie otwórz na komputerze adres pokazany na ekranie panelu. Jeśli połączenie się nie uda, po 30 sekundach pojawi się nowy kod QR do poprawienia ustawień.');};
+connection.onsubmit=e=>{e.preventDefault();save(connection,'/config','Zapisano ustawienia HA. Po restarcie panelu odśwież tę stronę i wybierz termostat.');};
+el('refresh').onclick=refresh;
+el('ota').onsubmit=async e=>{e.preventDefault();const form=el('ota'),button=form.querySelector('button'),file=form.elements.firmware.files[0];if(!file)return;button.disabled=true;status.textContent='Wysyłanie firmware… Nie zamykaj strony.';try{const r=await fetch('/update',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/octet-stream'},body:file});const text=await r.text();if(!r.ok)throw Error(text);status.textContent=text;el('reload').hidden=false}catch(e){status.textContent=e.message;button.disabled=false}};
+el('choose').onclick=async()=>{try{if(!entities.value)throw Error('Najpierw wybierz termostat.');await request('/select',{entity:entities.value});status.textContent='Gotowe. Panel uruchomi termostat i zamknie stronę konfiguracji. Aby ponownie otworzyć ustawienia, przytrzymaj pokrętło przez 3 sekundy.';}catch(e){status.textContent=e.message}};
+el('change-wifi').onclick=()=>{el('wifi-section').hidden=false;el('ha-section').hidden=true;el('intro').textContent='Zmiana Wi-Fi zachowa ustawienia Home Assistant. Wpisz ponownie hasło sieci.';};
+el('reload').onclick=()=>location.reload();load();
+</script></html>

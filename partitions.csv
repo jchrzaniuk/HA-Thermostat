@@ -1,0 +1,7 @@
+# Name, Type, SubType, Offset, Size
+# NVS and PHY keep their original offsets, so saved settings survive the switch to OTA.
+nvs, data, nvs, 0x9000, 0x6000
+phy_init, data, phy, 0xf000, 0x1000
+otadata, data, ota, 0x10000, 0x2000
+ota_0, app, ota_0, 0x20000, 4M
+ota_1, app, ota_1, 0x420000, 4M

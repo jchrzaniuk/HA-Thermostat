@@ -229,3 +229,8 @@ Home Assistant i integracje:
 - [API WebSocket Home Assistant](https://developers.home-assistant.io/docs/api/websocket/)
 - [Better Thermostat](https://github.com/KartoffelToby/better_thermostat)
 - [Versatile Thermostat](https://github.com/jmcollin78/versatile_thermostat)
+
+## Licencja
+
+Kod udostępniamy na licencji MIT (zob. [`LICENSE`](LICENSE)). Font Montserrat
+w `main/ui_assets.c` pochodzi z LVGL i jest na licencji SIL Open Font License 1.1.
